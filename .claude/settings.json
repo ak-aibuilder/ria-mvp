@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(.venv/bin/python \"/private/tmp/claude-501/-Users-akalidindi-Dev-ria-mvp/7057388b-813a-4a9d-9eab-0f99784527ad/scratchpad/readiness.py\")"
+    ]
+  }
+}

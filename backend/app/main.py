@@ -8,7 +8,9 @@ from __future__ import annotations
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.v1.router import router as api_v1_router
 from app.core.config import get_settings
+from app.db.mongo import ping
 
 settings = get_settings()
 
@@ -22,7 +24,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(api_v1_router)
+
 
 @app.get("/health")
 async def health() -> dict:
-    return {"status": "ok", "service": "ria-v2", "model": settings.GROQ_MODEL}
+    return {
+        "status": "ok",
+        "service": "ria-v2",
+        "model": settings.GROQ_MODEL,
+        "db": await ping(),
+    }

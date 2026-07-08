@@ -42,3 +42,20 @@ unexpected model behavior discovered during the build. Update in real time.
 - **Tokens consumed:** prompt=458, completion=510, total=968. The high
   completion count reflects gpt-oss reasoning tokens even at "Reasoning: low";
   worth watching against the FM-5 (token-bloat) bet in Step 3.
+
+### 2026-07-01 - Step 2 free-tier rate limiting (429)
+- **Step:** Step 2 (pipeline API — enrichment orchestrator)
+- **FM:** new (infra/serving constraint, not one of FM-1..5)
+- **What happened:** First full 5-product enrichment run fired up to ~20
+  concurrent Groq calls (5 products x up to 4 gap dimensions). Groq's free tier
+  ("on_demand", 8000 TPM) returned HTTP 429 rate_limit_exceeded on 6-7 of the
+  calls, each reserving ~2.3k tokens. The orchestrator degraded gracefully
+  (per-dim failures logged, products merged with whatever succeeded) so the
+  pipeline still produced tier shifts, but ~1/3 of dimensions were dropped.
+- **What I changed:** (1) `PRODUCT_CONCURRENCY` 8 -> 2 in enrich.py; (2) added
+  `max_retries=6` to the AsyncOpenAI client so 429s self-heal via the SDK's
+  retry-after backoff. Re-run: 5/5 products fully enriched (only 1 transient
+  dim-level 429, absorbed), tiers moved 5xTier-0 -> 5xTier-II. Logged as a
+  capability bet (docs/capability-bets.md).
+- **Tokens consumed:** ~20 enrichment calls at ~1-2.5k tokens each per run;
+  precise per-call accounting lands with the TokenTracker in Step 3.

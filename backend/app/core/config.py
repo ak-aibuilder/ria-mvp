@@ -17,7 +17,7 @@ class Settings(BaseSettings):
 
     # Database (wired in Step 2)
     MONGODB_URI: str = ""
-    MONGODB_DB_NAME: str = "ria_v2"
+    MONGODB_DB_NAME: str = "ria_mvp"
 
     # HTTP
     CORS_ORIGINS: str = "http://localhost:3000"

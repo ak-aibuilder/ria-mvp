@@ -62,8 +62,16 @@ class GroqEnrichmentClient:
         self._api_key = api_key or settings.GROQ_API_KEY
         if not self._api_key:
             raise EnrichmentError("GROQ_API_KEY is not set; enrichment cannot run")
+        # PROBLEM (Step 2 verify): Groq's free tier caps at 8000 tokens/min.
+        # Concurrent enrichment bursts hit HTTP 429 (rate_limit_exceeded).
+        # FIX: let the SDK auto-retry on 429/5xx — it honors the server's
+        # retry-after hint with exponential backoff. Paired with the reduced
+        # PRODUCT_CONCURRENCY in enrich.py, this makes enrichment self-heal
+        # instead of dropping dimensions. See docs/capability-bets.md.
         self._client = AsyncOpenAI(
-            api_key=self._api_key, base_url=settings.GROQ_BASE_URL
+            api_key=self._api_key,
+            base_url=settings.GROQ_BASE_URL,
+            max_retries=6,
         )
         self._model = model or settings.GROQ_MODEL
         # last_usage holds the OpenAI usage object from the most recent call so
