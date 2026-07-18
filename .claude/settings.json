@@ -9,7 +9,31 @@
       "Bash(.venv/bin/python -c ' *)",
       "Bash(.venv/bin/python scripts/verify_step4.py)",
       "Bash(.venv/bin/python scripts/diag_tool_tokens.py)",
-      "Bash(.venv/bin/python \"/private/tmp/claude-501/-Users-akalidindi-Dev-ria-mvp/6bd2ef50-8223-445e-bcb0-22e5ad223a1e/scratchpad/offline_tool_tokens.py\")"
+      "Bash(.venv/bin/python \"/private/tmp/claude-501/-Users-akalidindi-Dev-ria-mvp/6bd2ef50-8223-445e-bcb0-22e5ad223a1e/scratchpad/offline_tool_tokens.py\")",
+      "Bash(.venv/bin/python -c \"import ast; ast.parse\\(open\\('backend/app/services/agent.py'\\).read\\(\\)\\)\")",
+      "Bash(xargs -I{} echo {})",
+      "Bash(npm install *)",
+      "Bash(npm run *)",
+      "Bash(cat /tmp/ria-backend.log)",
+      "Read(//private/tmp/**)",
+      "Bash(curl -sv http://127.0.0.1:8000/health)",
+      "Bash(curl -s -X POST http://127.0.0.1:8000/api/v1/pipeline/start -F \"file=@data/apparel.csv\")",
+      "Bash(python3 -m json.tool)",
+      "Skill(browse)",
+      "Skill(browse:*)",
+      "Bash(/Users/akalidindi/.claude/skills/gstack/browse/dist/browse console *)",
+      "Bash(/Users/akalidindi/.claude/skills/gstack/browse/dist/browse screenshot *)",
+      "Read(//tmp/**)",
+      "Bash(/Users/akalidindi/.claude/skills/gstack/browse/dist/browse snapshot *)",
+      "Bash(/Users/akalidindi/.claude/skills/gstack/browse/dist/browse click *)",
+      "Bash(/Users/akalidindi/.claude/skills/gstack/browse/dist/browse html *)",
+      "Bash(break)",
+      "Bash(/Users/akalidindi/.claude/skills/gstack/browse/dist/browse scroll *)",
+      "Bash(/Users/akalidindi/.claude/skills/gstack/browse/dist/browse network *)",
+      "Bash(pkill -f \"uvicorn app.main:app\")",
+      "Bash(pkill -f \"next dev\")",
+      "Bash(/Users/akalidindi/.claude/skills/gstack/browse/dist/browse disconnect *)",
+      "Bash(/Users/akalidindi/.claude/skills/gstack/browse/dist/browse stop *)"
     ]
   }
 }

@@ -127,6 +127,26 @@ def _flatten_attr(value) -> set[str]:
     return set()
 
 
+def _extract_skus(result: dict) -> set[str]:
+    """SKUs a tool result surfaced to the agent (goals.md §4b Eval 4: products
+    examined). Covers all three tools: get_product_details returns "sku" at the
+    top level, search_products nests it in "matches", add_to_cart in both "sku"
+    and "cart_preview"."""
+    skus: set[str] = set()
+    if not isinstance(result, dict):
+        return skus
+    sku = result.get("sku")
+    if isinstance(sku, str):
+        skus.add(sku)
+    for key in ("matches", "cart_preview"):
+        items = result.get(key)
+        if isinstance(items, list):
+            for item in items:
+                if isinstance(item, dict) and isinstance(item.get("sku"), str):
+                    skus.add(item["sku"])
+    return skus
+
+
 def _project_search_match(p: dict) -> dict:
     return {
         "sku": p["sku"],
@@ -315,6 +335,7 @@ async def run_agent(
     turn_log: list[dict] = []  # per-turn usage + emitted tool + result-payload size
     fallback_fired = False
     search_count = 0
+    skus_examined: set[str] = set()
 
     def _log_turn(emitted: list[str], result_tokens: int) -> None:
         u = getattr(client, "last_usage", None)
@@ -378,6 +399,7 @@ async def run_agent(
                 messages.append({"role": "tool", "tool_call_id": tc.id, "content": result_json})
                 emitted.append(tc.function.name)
                 result_tokens += count_tokens(result_json)
+                skus_examined.update(_extract_skus(result))
             _log_turn(emitted, result_tokens)
             continue
 
@@ -390,6 +412,7 @@ async def run_agent(
             result = toolkit.execute(name, args)
             result_json = json.dumps(result)
             tool_calls.append({"name": name, "args": args, "result": result, "via": "text_fallback"})
+            skus_examined.update(_extract_skus(result))
             messages.append({"role": "assistant", "content": message.content or ""})
             messages.append({"role": "user", "content": f"tool_result for {name}: {result_json}"})
             _log_turn([name], count_tokens(result_json))
@@ -424,6 +447,8 @@ async def run_agent(
         "index_type": index_label,
         "query_text": query,
         "tool_calls": tool_calls,
+        "tool_call_count": len(tool_calls),
+        "skus_examined": sorted(skus_examined),
         "turn_log": turn_log,
         "agent_response": final_text or "(no response)",
         "turns_used": turns_used,

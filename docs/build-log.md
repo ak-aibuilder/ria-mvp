@@ -147,3 +147,62 @@ Framework); reframed Eval 4 + FM-5 around per-query cost.
   on catalog scale, not code.**
 
 ---
+
+## Step 5 — Frontend
+
+**Commit:** pending (uncommitted at time of writing).
+
+**Delivered:**
+- Single-page pipeline view (goals.md §7), top to bottom: CSV drop zone
+  (`UploadZone`) → audit results with a tier-distribution bar chart and
+  per-product gap table (`AuditResults`, Gate 1 button) → enrichment results
+  with a before/after tier comparison, token-cost metrics, and a per-product
+  before/after diff (`EnrichmentResults`, Gate 2 button) → validation chat
+  with side-by-side pre/post agent transcripts (`ValidationChat`) → export
+  download buttons (`ExportButtons`).
+- `lib/api.ts`: typed client for every endpoint the UI calls
+  (`/pipeline/start|confirm-enrich|confirm-validate`, `/validate/compare`,
+  plus the `/exports/{session}/{format}` URL contract for Step 6). Types were
+  hand-derived by reading the actual FastAPI response bodies, not guessed.
+- `TierChart`: shared bar-chart component (no charting library — plain CSS/DOM
+  bars), reused for both the plain audit distribution and the before/after
+  comparison.
+- `ValidationChat` surfaces the Step 4 addendum's corrected Eval 4 signal
+  directly: `skus_examined.length` and `tool_call_count` per side, with the
+  old total-token delta demoted to a labelled "supporting data point only —
+  see Eval 4" line instead of the headline.
+- `ExportButtons` calls the real `/exports/{session}/{format}` contract (goals
+  §12) and degrades gracefully on 404 ("Not available yet — exports ship in
+  Step 6") instead of a broken download, since Step 6 hasn't shipped the route.
+- No new frontend dependencies — plain Next.js/React with a hand-written
+  `globals.css`, matching the Step 1 scaffold's dependency set.
+
+**Problems + fixes:** None requiring a code change. `npm run build` caught
+zero type errors on the first pass because every component type was written
+directly against the backend response shapes (read from `pipeline.py`,
+`validate.py`, `agent.py`, `agent_index.py`, `audit.py`, `token_tracker.py`)
+rather than assumed.
+
+**Verification:** Live end-to-end run in a real browser (`gstack browse`)
+against the running backend + Groq, not just a typecheck:
+1. `npm run build` — clean typecheck + lint. PASS.
+2. Uploaded `data/apparel.csv` through the drop zone → real
+   `POST /pipeline/start` → audit table + Tier 0 ×20 chart rendered correctly.
+3. Clicked Gate 1 → real `POST /confirm-enrich` (hit the known Step 2 TPM
+   throttling, self-healed via retry/backoff): 65 calls, 56,012 tokens,
+   $0.0233, 20/20 products `ok`. Tier chart correctly rendered the 0%→50.0%
+   shift (10×Tier I, 10×Tier II).
+4. Clicked Gate 2 → real `POST /confirm-validate`, chat unlocked.
+5. Asked "waterproof jacket under $200 in size M" → real
+   `POST /validate/compare` (two live agent runs). Side-by-side card rendered
+   correctly, including the new `skus_examined`/`tool_call_count` fields from
+   this session's earlier instrumentation work (both sides: 0 products
+   examined, 3 tool calls, 4 turns — the agent didn't find a match on this
+   run, and the UI displayed that correctly rather than erroring).
+6. Clicked an export button → real 404 (Step 6 not built) → UI showed "Not
+   available yet — exports ship in Step 6" instead of a broken state.
+7. Zero browser console errors at any step.
+
+**Step 5 is fully verified against live data, not mocked.**
+
+---
