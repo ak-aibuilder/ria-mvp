@@ -3,19 +3,31 @@
 import { useState } from "react";
 import { ExportFormat, exportUrl } from "../lib/api";
 
-const EXPORTS: { format: ExportFormat; label: string; note: string }[] = [
+const EXPORTS: { format: ExportFormat; label: string; note: string; ext: string }[] = [
   {
     format: "ucp_supplemental",
     label: "UCP Supplemental Feed",
     note: "Google Merchant Center",
+    ext: "json",
   },
-  { format: "acp_feed", label: "ACP Product Feed", note: "ChatGPT discovery" },
+  {
+    format: "acp_feed",
+    label: "ACP Product Feed",
+    note: "ChatGPT discovery",
+    ext: "jsonl",
+  },
   {
     format: "asa_readiness",
     label: "ASA Readiness Report",
     note: "Amazon readiness summary",
+    ext: "json",
   },
-  { format: "enriched_csv", label: "Enriched CSV", note: "Full catalog export" },
+  {
+    format: "enriched_csv",
+    label: "Enriched CSV",
+    note: "Full catalog export",
+    ext: "csv",
+  },
 ];
 
 export default function ExportButtons({
@@ -27,25 +39,19 @@ export default function ExportButtons({
 }) {
   const [status, setStatus] = useState<Record<string, string>>({});
 
-  async function download(format: ExportFormat) {
+  async function download(format: ExportFormat, ext: string) {
     setStatus((s) => ({ ...s, [format]: "loading" }));
     try {
       const res = await fetch(exportUrl(sessionId, format));
       if (!res.ok) {
-        setStatus((s) => ({
-          ...s,
-          [format]:
-            res.status === 404
-              ? "Not available yet — exports ship in Step 6."
-              : `Export failed (${res.status}).`,
-        }));
+        setStatus((s) => ({ ...s, [format]: `Export failed (${res.status}).` }));
         return;
       }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${format}-${sessionId}`;
+      a.download = `${format}-${sessionId}.${ext}`;
       a.click();
       URL.revokeObjectURL(url);
       setStatus((s) => ({ ...s, [format]: "" }));
@@ -63,7 +69,7 @@ export default function ExportButtons({
         {EXPORTS.map((exp) => (
           <div className="export-btn-wrap" key={exp.format}>
             <button
-              onClick={() => download(exp.format)}
+              onClick={() => download(exp.format, exp.ext)}
               disabled={!enabled || status[exp.format] === "loading"}
             >
               {status[exp.format] === "loading" ? "Preparing…" : exp.label}

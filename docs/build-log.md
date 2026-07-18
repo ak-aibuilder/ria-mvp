@@ -206,3 +206,81 @@ against the running backend + Groq, not just a typecheck:
 **Step 5 is fully verified against live data, not mocked.**
 
 ---
+
+## Step 6 — Exports
+
+**Commit:** pending (uncommitted at time of writing).
+
+**Delivered:**
+- `backend/app/api/v1/exports.py`: `GET /api/v1/exports/{session_id}/{format}`,
+  the four formats from goals.md §12:
+  - `ucp_supplemental` (JSON array): id, title, `product_highlight` (Q&A
+    answers with `speculative:true` filtered out), `compatible_products`
+    (relationship_type=="complementary"), `substitute_products`
+    (=="substitute"), `lifestyle` (facet occasion), `season` (facet season).
+    Both relationship lists are filtered against the session's own catalog
+    SKU set — Eval 5's "no phantom SKU" requirement — even though
+    `merger.py`'s `_coerce_relationships` already guarantees this upstream.
+  - `acp_feed` (JSONL, one JSON object per line): id, title (≤150 chars),
+    description (≤5000 chars), price `{amount, currency}`, availability,
+    url (`/products/{sku}` — no store-domain config exists yet, so this is a
+    relative path built from real SKU data, not a fabricated absolute URL),
+    eligibility `{search: true, checkout: false}`.
+  - `asa_readiness` (JSON): total/ready product counts, percentage, a
+    recommendation string banded on percentage, and
+    `requirements_coverage` (% of products with D1/D3/D5 ≥ 6.0 —
+    structured_data/q_and_a/relationships — plus `brand_voice: null`,
+    explicitly not generated per the spec).
+  - `enriched_csv`: original fields + tier/readiness_score + enriched
+    description + one flattened column per controlled-vocab facet
+    (`facet_occasion`, `facet_weather`, ...) + Q&A/relationship counts.
+  - All four reuse `enrich.py`'s `_apply_enriched_view` (same overlay
+    pipeline.py already uses for scoring) so an export reflects Gate 1's
+    enrichment exactly, and `pipeline.py`'s `scored_entry` for tier/score
+    columns — no duplicated scoring logic.
+- Mounted in `router.py` alongside `pipeline` and `validate`.
+- Frontend: `ExportButtons` already called this exact URL contract from Step
+  5 (built ahead of the route existing, with a graceful 404 fallback). Only
+  change needed was adding a proper file extension per format
+  (`{format}-{session}.{json|jsonl|csv}`) to the downloaded filename — the
+  Step 5 placeholder had no extension. The "ships in Step 6" fallback copy
+  is now dead code in practice (the route exists) but left in place as the
+  generic non-2xx handler, since a real 404/500 should still degrade
+  gracefully rather than break the UI.
+
+**Problems + fixes:** None requiring a code change. One non-issue noted
+during verification: `curl -I` (HEAD request) on `acp_feed` returned
+`content-type: application/json` while a real `GET` correctly returned
+`application/jsonl` — a HEAD-request quirk in how Starlette dispatches to
+the endpoint for HEAD, not a bug in the response the browser (or any real
+client doing a GET) actually receives. Confirmed via `curl -D -` on a real
+GET.
+
+**Verification:** Live, against a real enriched session, not fixtures:
+1. Reused the Tier-II-shifted 20-product session from Step 5's browser run
+   (`phase: validate_ready`) to test all four export formats directly via
+   curl first: all 200, correct shapes, correct `Content-Disposition`.
+2. Automated Eval 5 check against the live `ucp_supplemental` response: 20
+   entries, every `id` matches a catalog SKU, zero phantom SKU references in
+   `compatible_products`/`substitute_products`. **PASS.**
+3. Confirmed real data correctness, not just shape: one product's
+   `product_highlight` was empty because every one of its 4 Q&A pairs was
+   honestly flagged `speculative: true` by the model (no material/care/occasion
+   in the raw CSV) — the non-speculative filter working as designed, not a
+   bug. Another product's `enriched_csv` row had an empty `enriched_description`
+   because D2 wasn't enriched for it (partial-failure degradation from the
+   known Step 2 TPM capability bet) while its Q&A/relationship/facet columns
+   were populated — correctly reflects partial enrichment rather than
+   silently backfilling.
+4. Edge cases: unknown format → 404; unknown session → 404. Both clean.
+5. Full live browser click-through (`gstack browse`): fresh upload → Gate 1
+   (real enrichment, 20/20 products, this run took ~6.8 min under heavier
+   same-day TPM throttling than Step 5's run — noted, not a regression) →
+   Gate 2 → clicked all four export buttons for real. All four fired real
+   `GET /exports/...` requests, all 200, zero browser console errors, UI
+   returned to its normal (non-error) state after each download.
+
+**Step 6 is fully verified against live data, including the Eval 5 pass/fail
+check specified in goals.md §4.**
+
+---

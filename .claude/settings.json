@@ -33,7 +33,15 @@
       "Bash(pkill -f \"uvicorn app.main:app\")",
       "Bash(pkill -f \"next dev\")",
       "Bash(/Users/akalidindi/.claude/skills/gstack/browse/dist/browse disconnect *)",
-      "Bash(/Users/akalidindi/.claude/skills/gstack/browse/dist/browse stop *)"
+      "Bash(/Users/akalidindi/.claude/skills/gstack/browse/dist/browse stop *)",
+      "Bash(curl -s http://127.0.0.1:8000/api/v1/exports/7936e4dd83074ad097074c6ede9bc3d8/ucp_supplemental)",
+      "Bash(curl -s http://127.0.0.1:8000/api/v1/exports/7936e4dd83074ad097074c6ede9bc3d8/acp_feed)",
+      "Bash(curl -s -D - -o /dev/null http://127.0.0.1:8000/api/v1/exports/7936e4dd83074ad097074c6ede9bc3d8/acp_feed)",
+      "Bash(curl -s http://127.0.0.1:8000/api/v1/exports/7936e4dd83074ad097074c6ede9bc3d8/asa_readiness)",
+      "Bash(curl -s -o /dev/null -w '%{http_code}\\\\n' http://127.0.0.1:8000/api/v1/exports/7936e4dd83074ad097074c6ede9bc3d8/bogus_format)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" \"http://127.0.0.1:8000/api/v1/exports/nonexistent-session/enriched_csv\")",
+      "Bash(/Users/akalidindi/.claude/skills/gstack/browse/dist/browse goto *)",
+      "Bash(/Users/akalidindi/.claude/skills/gstack/browse/dist/browse upload *)"
     ]
   }
 }
