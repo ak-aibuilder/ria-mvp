@@ -23,6 +23,12 @@ export type Gap = {
 export type ScoredProduct = {
   sku: string;
   name: string | null;
+  description: string | null;
+  price: number | null;
+  category: string | null;
+  brand: string | null;
+  attributes: Record<string, unknown> | null;
+  image_urls: string[] | null;
   readiness_score: number;
   dimension_scores: Record<string, number>;
   gaps: Gap[];

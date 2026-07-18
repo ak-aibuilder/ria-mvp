@@ -41,7 +41,16 @@
       "Bash(curl -s -o /dev/null -w '%{http_code}\\\\n' http://127.0.0.1:8000/api/v1/exports/7936e4dd83074ad097074c6ede9bc3d8/bogus_format)",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" \"http://127.0.0.1:8000/api/v1/exports/nonexistent-session/enriched_csv\")",
       "Bash(/Users/akalidindi/.claude/skills/gstack/browse/dist/browse goto *)",
-      "Bash(/Users/akalidindi/.claude/skills/gstack/browse/dist/browse upload *)"
+      "Bash(/Users/akalidindi/.claude/skills/gstack/browse/dist/browse upload *)",
+      "Bash(lsof -iTCP -sTCP:LISTEN -P)",
+      "Bash(cp /Users/akalidindi/Dev/ria-mvp/data/apparel.csv /tmp/apparel.csv)",
+      "Bash(/Users/akalidindi/.claude/skills/gstack/browse/dist/browse status *)",
+      "Bash(/Users/akalidindi/.claude/skills/gstack/browse/dist/browse url *)",
+      "Bash(/Users/akalidindi/.claude/skills/gstack/browse/dist/browse text *)",
+      "Bash(curl -s http://127.0.0.1:8000/health)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3000)",
+      "Bash(/Users/akalidindi/.claude/skills/gstack/browse/dist/browse hover *)",
+      "Bash(rm -f /tmp/apparel.csv /tmp/apparel2.csv /tmp/ria-*.png)"
     ]
   }
 }

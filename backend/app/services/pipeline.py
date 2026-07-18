@@ -22,11 +22,19 @@ def score_with_tier(product: dict) -> dict:
 
 
 def scored_entry(product: dict) -> dict:
-    """A compact per-product audit row for API responses."""
+    """A per-product audit row for API responses: score + tier + the raw
+    catalog fields a UI needs to explain the row on click, without a second
+    round trip to /pipeline/status."""
     st = score_with_tier(product)
     return {
         "sku": product["sku"],
         "name": product.get("name"),
+        "description": product.get("description"),
+        "price": product.get("price"),
+        "category": product.get("category"),
+        "brand": product.get("brand"),
+        "attributes": product.get("attributes"),
+        "image_urls": product.get("image_urls"),
         "readiness_score": st["readiness_score"],
         "dimension_scores": st["dimension_scores"],
         "gaps": st["gaps"],

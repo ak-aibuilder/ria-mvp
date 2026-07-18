@@ -4,7 +4,8 @@ Chronological record of what shipped each build step: deliverables, problems
 hit + fixes, and verification outcome. Maintained after every step. Cross-refs:
 [goals.md](goals.md) (spec), [model-behavior-log.md](model-behavior-log.md)
 (model behaviors), [capability-bets.md](capability-bets.md) (model-limited
-features), [dataset-readiness.md](dataset-readiness.md) (fixture assessment).
+features), [dataset-readiness.md](dataset-readiness.md) (fixture assessment),
+[bug-log.md](bug-log.md) (bugs found post-ship + fixes).
 
 ---
 
