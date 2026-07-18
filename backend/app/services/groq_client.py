@@ -107,6 +107,41 @@ class GroqEnrichmentClient:
         )
         return _extract_json(second_text)
 
+    async def chat(
+        self,
+        *,
+        messages: list[dict],
+        tools: list[dict] | None = None,
+        tool_choice: str = "auto",
+        max_tokens: int = 1024,
+        temperature: float = 0.2,
+    ) -> Any:
+        """Raw tool-enabled chat completion for the validation agent (Step 4).
+
+        Returns the OpenAI message object (has .content and .tool_calls). Sets
+        last_usage like the enrichment path so the TokenTracker instruments
+        validation the same way (record_last after each turn).
+        """
+        kwargs: dict[str, Any] = {
+            "model": self._model,
+            "messages": messages,
+            "max_tokens": max_tokens,
+            "temperature": temperature,
+        }
+        if tools:
+            kwargs["tools"] = tools
+            kwargs["tool_choice"] = tool_choice
+        try:
+            resp = await self._client.chat.completions.create(**kwargs)
+        except APIError as exc:
+            raise EnrichmentError(f"Groq API error: {exc}") from exc
+        self.last_usage = getattr(resp, "usage", None)
+        return resp.choices[0].message
+
+    @property
+    def model_name(self) -> str:
+        return self._model
+
     async def _raw_call(
         self, *, system: str, user: str, max_tokens: int, temperature: float
     ) -> str:

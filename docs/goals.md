@@ -29,7 +29,7 @@ FM-3: Relationship enrichment hallucinates SKUs that don't exist in the catalog.
 
 FM-4: The validation agent stops after finding one product instead of surfacing 2-3 options when multiple products match the query.
 
-FM-5: Token tracking shows negative reduction (enriched output is LARGER than raw input), meaning enrichment added bloat instead of structuring the data.
+FM-5: The post-enrichment agent consumes MORE total tokens per query than the pre-enrichment agent, meaning structured data didn't help the agent work more efficiently.
 
 ## 4. Five Evals
 
@@ -59,12 +59,17 @@ Eval 3: Given "waterproof jacket under $200 in size M" on the enriched
         3 = correct product via keyword only. 2 = wrong product.
         0 = hallucinated. Threshold: >= 3.5
 
-Eval 4: Token tracking should report a positive token_reduction_pct for
-        every enriched product (structured JSON should be smaller than
-        raw marketing prose in token count).
-        Pass: all products show positive reduction. Fail: any negative.
-        Scoring: 5 = all positive. 4 = 1 negative. 3 = 2 negative.
-        0 = majority negative. Threshold: >= 4
+Eval 4: Given the same query run against the pre-enrichment and post-
+        enrichment indexes, the post-enrichment agent loop should consume
+        fewer total tokens (structured facet filters let the agent narrow to
+        2-3 products instead of loading the full catalog to keyword-search).
+        Pass: post-enrichment total tokens < pre-enrichment total tokens.
+        Scoring: 5 = 50%+ reduction. 4 = 25-50% reduction.
+        3 = 1-25% reduction. 2 = no reduction. 0 = post-enrichment costs more.
+        Threshold: >= 3
+        Note: per-product raw-vs-enriched token counts are kept as a supporting
+        data point (raw descriptions are already lean, so per-product size
+        grows after enrichment); they are NOT an eval criterion. See §4b.
 
 Eval 5: UCP supplemental feed export should produce valid JSON where every
         entry has an "id" matching a catalog SKU, and no entry references
@@ -73,6 +78,61 @@ Eval 5: UCP supplemental feed export should produce valid JSON where every
         Scoring: 5 = perfect. 4 = 1 error. 3 = 2-3 errors.
         0 = structurally invalid JSON. Threshold: >= 4
 ```
+
+---
+
+## 4b. Metrics Framework
+
+One North Star, with supporting metrics (are we winning?) and counter metrics
+(what might we be breaking?), split by whether they are deterministic (computed
+in code, no LLM) or non-deterministic (depend on model output, need an eval
+run). Each notes the build step that instruments it and whether it is measurable
+as of Step 3 (✅ now · 🔜 unlocked by a later step).
+
+### North Star Metric (NSM)
+
+**Catalog Agent-Readiness Rate** — % of products at Tier II or higher *after*
+enrichment. This is the number the whole pipeline moves: a raw catalog starts at
+0% (see dataset-readiness §5) and enrichment lifts it. Instrumented in Step 2
+(audit + `assign_tier`), computed on the re-audit after Gate 1. Measurable ✅.
+
+### Supporting metrics — deterministic
+
+| Metric | Definition | Instrumented | Measurable |
+|---|---|---|---|
+| Per-dimension score distribution | Spread of D1–D6 scores across the catalog, pre and post | Step 2 (`audit.py`) | ✅ |
+| Tier shift matrix | Count of products moving tier X→Y after enrichment | Step 2 (`/confirm-enrich` before/after) | ✅ |
+| Gap closure rate per dimension | Gaps closed ÷ gaps present pre-enrichment, per D1–D6 | Step 2/3 (before/after scores) | ✅ |
+| Export completeness rate | % of catalog represented in each export with all required fields | Step 6 (exports) | 🔜 Step 6 |
+
+### Supporting metrics — non-deterministic
+
+| Metric | Definition | Instrumented | Measurable |
+|---|---|---|---|
+| Enrichment factual accuracy | % of enriched claims derivable from source (no fabrication; FM-1) | Step 7 (Eval 2) | 🔜 Step 7 |
+| Agent query resolution rate | % of queries the agent resolves to a correct product via filters (Eval 3) | Step 4 (agent) | 🔜 Step 4 |
+| Enrichment retry rate | Fraction of enrichment calls that retried (bad JSON) or hit 429 | Step 3 (partial — SDK backoff hides some) | ⚠️ Partial |
+| Facet vocabulary compliance rate | % of emitted facet values inside the controlled vocab (FM-2) | Step 4/7 | 🔜 Step 7 |
+
+### Counter metrics — deterministic
+
+| Metric | Definition | Instrumented | Measurable |
+|---|---|---|---|
+| Enrichment cost per product | USD of Groq calls to enrich each product | Step 3 (`enrichment_by_sku`) | ✅ |
+| Token bloat rate | % of products whose enriched representation is larger than raw (supporting data point, not an eval — see Eval 4) | Step 3 (`count_tokens`) | ✅ |
+| Source field override count | Times enrichment overwrote a populated source field | Step 2 (`merger` provenance / `audit_trail`) | ✅ |
+
+### Counter metrics — non-deterministic
+
+| Metric | Definition | Instrumented | Measurable |
+|---|---|---|---|
+| Speculative claim rate | Fraction of Q&A answers flagged `speculative:true` | Step 3/7 | ⚠️ Partial |
+| Hallucinated relationship rate | Relationships referencing SKUs not in the catalog (FM-3) | Step 2 (`merger` validates vs `catalog_skus`) | ✅ (drops + can count) |
+| Agent hallucination rate | Agent invents a SKU or attribute not in the index (FM-4) | Step 4/7 | 🔜 Step 4 |
+
+**Headline demo number:** per-query token reduction (pre vs post index),
+`TokenTracker.query_comparison()` — the Eval 4 measurement. Recorded live when
+the validation agent runs the same query against both indexes (Step 4).
 
 ---
 
@@ -108,7 +168,8 @@ model = "openai/gpt-oss-120b"
 temperature = 0.2
 max_tokens = 1024
 tool_choice = "auto"
-max_turns = 4
+max_turns = 6  # revised from 4 in Step 4: full search->details->add_to_cart->
+               # summary flow truncated at 4. See model-behavior-log 2026-07-08.
 # Add "Reasoning: medium" as first line of system prompt
 
 # Fallback (enrichment only, not for agent)
@@ -318,7 +379,7 @@ GAP_TO_PROMPT = {"D2": ENRICH_DESCRIPTION, "D3": ENRICH_QA,
 ## 10. Validation Agent
 
 ```python
-MAX_TURNS = 4
+MAX_TURNS = 6  # revised from 4 in Step 4 (see §5 note)
 
 SYSTEM_PROMPT = (
     "Reasoning: medium\n\n"

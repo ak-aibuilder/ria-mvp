@@ -16,6 +16,7 @@ from app.services.audit import score_product
 from app.services.groq_client import GroqEnrichmentClient, EnrichmentError
 from app.services.merger import merge_enrichments
 from app.services.prompts import GAP_TO_PROMPT
+from app.services.token_tracker import PHASE_ENRICHMENT, TokenTracker
 
 logger = logging.getLogger(__name__)
 
@@ -58,6 +59,7 @@ async def enrich_products(
     client: GroqEnrichmentClient,
     max_concurrency: int = PRODUCT_CONCURRENCY,
     on_product_done=None,
+    tracker: TokenTracker | None = None,
 ) -> list[dict]:
     """Enrich each product against its gaps; return merged copies.
 
@@ -86,6 +88,13 @@ async def enrich_products(
                         user=user_prompt,
                         max_tokens=2048,
                     )
+                    # Read usage synchronously right after the await returns (no
+                    # intervening await) so the shared client.last_usage still
+                    # reflects this coroutine's own call under the fan-out.
+                    if tracker is not None:
+                        tracker.record_last(
+                            client, phase=PHASE_ENRICHMENT, label=product["sku"]
+                        )
                     return dim, result, None
                 except EnrichmentError as exc:
                     logger.warning(

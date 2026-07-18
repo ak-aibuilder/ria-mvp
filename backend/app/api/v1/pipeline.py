@@ -23,6 +23,7 @@ from app.services.enrich import enrich_products
 from app.services.groq_client import EnrichmentError, GroqEnrichmentClient
 from app.services.ingest import ingest
 from app.services.pipeline import audit_view, tier_distribution, scored_entry
+from app.services.token_tracker import TokenTracker
 
 router = APIRouter(prefix="/pipeline", tags=["pipeline"])
 
@@ -136,7 +137,9 @@ async def confirm_enrich(
     except EnrichmentError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
-    enriched = await enrich_products(products, client=client)
+    tracker = TokenTracker()
+    enriched = await enrich_products(products, client=client, tracker=tracker)
+    enrichment_metrics = tracker.enrichment_summary()
 
     now = _now()
     for prod in enriched:
@@ -153,9 +156,17 @@ async def confirm_enrich(
                 }
             },
         )
+    # Persist enrichment cost so the demo can show it later (the headline
+    # pre/post query comparison is added when the validation agent runs).
     await db.sessions.update_one(
         {"_id": payload.session_id},
-        {"$set": {"phase": "enriched", "updated_at": now}},
+        {
+            "$set": {
+                "phase": "enriched",
+                "token_metrics": {"enrichment": enrichment_metrics},
+                "updated_at": now,
+            }
+        },
     )
 
     after = audit_view(enriched)
@@ -185,6 +196,10 @@ async def confirm_enrich(
         "report": {
             "succeeded": sum(1 for p in enriched if p.get("enrichment_status") == "ok"),
             "failed": sum(1 for p in enriched if p.get("enrichment_status") == "failed"),
+        },
+        "token_metrics": {
+            "enrichment": enrichment_metrics,
+            "per_product": tracker.enrichment_by_sku(),
         },
     }
 
